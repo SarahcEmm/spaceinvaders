@@ -1,14 +1,7 @@
 const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-
-    // Set initial canvas size to fit viewport
-    function resizeCanvas() {
-      canvas.width = window.innerWidth * 0.8; // Set canvas to 80% of screen width
-      canvas.height = window.innerHeight * 0.6; // Set canvas to 60% of screen height
-    }
-
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas(); // Call this on load
+    const gameOverDiv = document.getElementById("gameOver");
+    const scoreboard = document.getElementById("scoreboard");
 
     // Load images
     const playerImage = new Image();
@@ -20,27 +13,27 @@ const canvas = document.getElementById("gameCanvas");
     // Player properties
     const playerWidth = 60,
           playerHeight = 60,
-          playerSpeed = 7;
+          playerSpeed = 8;
     let playerX = canvas.width / 2 - playerWidth / 2;
 
     // Bullet properties
     const bulletWidth = 5,
           bulletHeight = 10,
-          bulletSpeed = 7;
+          bulletSpeed = 4;
     let bullets = [];
 
     // Enemy properties
     const enemyRows = 4,
           enemyCols = 8,
-          enemyWidth = 40,
-          enemyHeight = 40,
-          enemySpacing = 20;
+          enemyWidth = 60,
+          enemyHeight = 60,
+          enemySpacing = 30;
     let enemies = [];
-    let enemySpeed = 1; // Speed of enemy movement
+    let enemySpeed = 3;
     let movingRight = true;
     let gameOver = false;
+    let score = 0;
 
-    // Dynamically create enemies
     function createEnemies() {
       enemies = [];
       for (let row = 0; row < enemyRows; row++) {
@@ -55,76 +48,74 @@ const canvas = document.getElementById("gameCanvas");
       }
     }
 
-    // Draw player
     function drawPlayer() {
       ctx.drawImage(playerImage, playerX, canvas.height - playerHeight - 10, playerWidth, playerHeight);
     }
 
-    // Draw bullets
     function drawBullets() {
       ctx.fillStyle = "yellow";
       bullets.forEach((bullet, index) => {
         ctx.fillRect(bullet.x, bullet.y, bulletWidth, bulletHeight);
         bullet.y -= bulletSpeed;
-
         if (bullet.y < 0) bullets.splice(index, 1);
       });
     }
 
-    // Draw enemies
     function drawEnemies() {
       enemies.forEach((enemy) => {
         ctx.drawImage(enemyImage, enemy.x, enemy.y, enemy.width, enemy.height);
       });
     }
 
-    // Handle enemy movement
     function moveEnemies() {
       let hitEdge = false;
+
       enemies.forEach((enemy) => {
-        if (movingRight && enemy.x + enemy.width + enemySpeed > canvas.width) {
-          hitEdge = true;
-        }
-        if (!movingRight && enemy.x - enemySpeed < 0) {
-          hitEdge = true;
-        }
+        if (movingRight && enemy.x + enemy.width + enemySpeed > canvas.width) hitEdge = true;
+        if (!movingRight && enemy.x - enemySpeed < 0) hitEdge = true;
       });
 
       if (hitEdge) {
         movingRight = !movingRight;
         enemies.forEach((enemy) => {
           enemy.y += 10;
-          if (enemy.y + enemy.height >= canvas.height) {
-            triggerGameOver();
-          }
+          if (enemy.y >= canvas.height - 100) triggerGameOver();
         });
       }
 
       enemies.forEach((enemy) => {
-        if (movingRight) {
-          enemy.x += enemySpeed;
-        } else {
-          enemy.x -= enemySpeed;
-        }
+        if (movingRight) enemy.x += enemySpeed;
+        else enemy.x -= enemySpeed;
       });
     }
 
-    // Trigger Game Over
-    function triggerGameOver() {
-      gameOver = true;
-      document.getElementById("gameOver").style.display = "block";
+    function checkCollision() {
+      bullets.forEach((bullet, bIndex) => {
+        enemies.forEach((enemy, eIndex) => {
+          if (
+            bullet.x < enemy.x + enemy.width &&
+            bullet.x + bulletWidth > enemy.x &&
+            bullet.y < enemy.y + enemy.height &&
+            bullet.y + bulletHeight > enemy.y
+          ) {
+            bullets.splice(bIndex, 1);
+            enemies.splice(eIndex, 1);
+            score += 10;
+            scoreboard.innerText = `Score: ${score}`;
+
+            if (enemies.length === 0) {
+              alert("Congratulations! You cleared the level!");
+              enemySpeed += 0.5; // Increase difficulty
+              createEnemies();
+            }
+          }
+        });
+      });
     }
 
-    // Game loop
-    function gameLoop() {
-      if (gameOver) return;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawPlayer();
-      drawBullets();
-      drawEnemies();
-      moveEnemies();
-      requestAnimationFrame(gameLoop);
+    function triggerGameOver() {
+      gameOver = true;
+      gameOverDiv.style.display = "block";
     }
 
     let isLeftPressed = false;
@@ -152,5 +143,17 @@ const canvas = document.getElementById("gameCanvas");
     setInterval(() => {
       if (!gameOver) updatePlayerPosition();
     }, 1000 / 60);
+
+    function gameLoop() {
+      if (gameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawPlayer();
+      drawBullets();
+      drawEnemies();
+      moveEnemies();
+      checkCollision();
+      requestAnimationFrame(gameLoop);
+    }
 
     gameLoop();
